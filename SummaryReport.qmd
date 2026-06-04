@@ -1,0 +1,517 @@
+---
+title: "CWS- Offshore Bat Monitoring Project"
+subtitle: "Manual Verification Data Summary "
+format:
+  html:
+    grid:
+      margin-width: 300px
+    title-block-banner: "#1d4566"
+    title-block-banner-color: "#F4F4F5"
+    theme: cosmo
+    toc: true
+    toc-depth: 3
+    toc-expand: true
+    toc-location: left
+    css: styles.css
+  pdf:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    colorlinks: true
+    geometry:
+      - margin=1in
+    papersize: letter
+date: last-modified
+author: 
+  - name: "Camila Hurtado"
+    affiliation: "Lead, Biodiversity Pathways Ltd."
+editor: visual
+bibliography: references.bib
+nocite: '@*'
+---
+
+```{r}
+#| label: setup - load libraries and data
+#| include: false
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+
+library(ggplot2)
+library(dplyr)
+library(tinytex)
+library(quarto)
+library(lubridate)
+library(flextable)
+library(tidyverse)
+library(kableExtra)
+library(readr)
+library(leaflet)
+library(sf)
+
+df <- read.csv("Data/species_summary_by_site_month_year.csv")
+
+```
+
+```{r}
+#| label: setup - create summary of processing table
+#| include: false
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+
+#Upload the filerenaming csv
+rename <- read.csv("Data/MNA_File_Renaming.csv")
+
+#first identify the specific sites from the filenames
+data <- df %>%
+  mutate(site = str_extract(filename, "^[^_]+"))
+
+# Summarize which species were found at each site adn by each detector
+detailed_summary <- data %>%
+  group_by(site) %>%
+  summarise(
+    n_files = n(),
+    kaleidoscope_species = {
+      species <- `WA.Kaleidoscope.Auto.ID` %>%
+        na.omit() %>%
+        str_split("[, ]+") %>%                # Split by comma, space, or both
+        unlist() %>%
+        .[. != "" & !str_detect(., "(?i)^noise$")] %>%  # Remove empty and Noise only
+        unique() %>%
+        sort()
+      if(length(species) > 0) paste(species, collapse = ", ") else "None"
+    },
+    sonobat_species = {
+      species <- `SB.Species.Auto.ID.verbose` %>%
+        na.omit() %>%
+        str_split("[, ]+") %>%                # Split by comma, space, or both
+        unlist() %>%
+        .[. != "" & !str_detect(., "(?i)^noise$")] %>%  # Remove empty and Noise only
+        unique() %>%
+        sort()
+      if(length(species) > 0) paste(species, collapse = ", ") else "None"
+    },
+    manual_species = {
+      species <- `Species.Manual.ID` %>%
+        na.omit() %>%
+        str_split("[, ]+") %>%                # Split by comma, space, or both
+        unlist() %>%
+        .[. != "" & !str_detect(., "(?i)^noise$")] %>%  # Remove empty and Noise only
+        unique() %>%
+        sort()
+      if(length(species) > 0) paste(species, collapse = ", ") else "None"
+    }
+  )
+
+
+```
+
+```{r}
+#| label: setup - heat maps of species detections
+#| include: false
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+
+# First, make sure your data has the site column
+data <- df %>%
+  mutate(site = str_extract(filename, "^[^_]+"))
+
+# Corrected function
+create_species_matrix <- function(data, species_column, location_column = "site") {
+  # Create a dataframe with location and species strings
+  species_data <- data %>%
+    select(location = all_of(location_column), species_string = all_of(species_column)) %>%
+    filter(!is.na(species_string) & species_string != "" & species_string != "None") %>%
+    distinct()
+  
+  # Split comma-separated species into individual rows
+  species_long <- species_data %>%
+    separate_rows(species_string, sep = ",\\s*") %>%
+    filter(species_string != "" & 
+           species_string != "None" & 
+           species_string != "NoID" & 
+           species_string != "NOISE"&
+           species_string != "Noise" &
+           species_string != "HiLo" ) %>%   
+    mutate(present = 1) %>%
+    distinct(location, species_string, .keep_all = TRUE)
+  
+  # Create presence/absence matrix
+  species_matrix <- species_long %>%
+    pivot_wider(
+      names_from = species_string,
+      values_from = present,
+      values_fill = 0
+    ) %>%
+    arrange(location)
+  
+  return(species_matrix)
+}
+
+# ============================================================================
+# Manual ID
+# ============================================================================
+manual_matrix <- create_species_matrix(data, "Species.Manual.ID")
+
+# Convert to long format for ggplot
+manual_long <- manual_matrix %>%
+  pivot_longer(
+    cols = -location,
+    names_to = "species",
+    values_to = "present"
+  ) %>%
+  mutate(species = factor(species))
+
+manual_long$location <- factor(manual_long$location, 
+                               levels = sort(unique(manual_long$location)))
+
+# Custom species ordering: alphabetical, but HighF, LowF, 40K at end
+species_list <- unique(manual_long$species)
+freq_categories <- c("40K", "HiF", "HiLo", "LoF", "HighF", "LowF")
+regular_species <- sort(setdiff(species_list, freq_categories))
+ordered_species <- c(regular_species, sort(freq_categories))
+
+manual_long$species <- factor(manual_long$species, levels = ordered_species)
+
+# Create heat map for Manual ID
+MV <- ggplot(manual_long, aes(x = species, y = location, fill = factor(present))) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  scale_fill_manual(
+    values = c("0" = "gray95", "1" = "#2C7BB6"),
+    labels = c("Absent", "Present"),
+    name = "Detection"
+  ) +
+  labs(
+    #subtitle = "Species confirmed through manual verification of recordings",
+    x = "Species Code",
+    y = "Location"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+    axis.text.y = element_text(size = 10),
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(size = 11, color = "gray40"),
+    panel.grid = element_blank(),
+    legend.position = "bottom"
+  )
+
+# ============================================================================
+# KALEIDOSCOPE AUTO ID
+# ============================================================================
+
+KS_matrix <- create_species_matrix(data, "WA.Kaleidoscope.Auto.ID")
+
+# Convert to long format for ggplot
+KS_long <- KS_matrix %>%
+  pivot_longer(
+    cols = -location,
+    names_to = "species",
+    values_to = "present"
+  ) %>%
+  mutate(species = factor(species))
+
+# Truncate species codes to 4 letters for Kaleidoscope
+KS_long <- KS_long %>%
+  mutate(species = ifelse(
+    nchar(as.character(species)) > 4,
+    paste0(str_sub(as.character(species), 1, 2), 
+           str_sub(as.character(species), 4, 5)),
+    as.character(species)
+  ))
+
+#organize based on alphabetical order of locations
+KS_long$location <- factor(KS_long$location, 
+                           levels = sort(unique(KS_long$location)))
+
+# Custom species ordering: alphabetical, but HighF, LowF, 40K at end
+KS_species_list <- unique(KS_long$species)
+freq_categories <- c("40K", "HiF", "HiLo", "LoF", "HighF", "LowF")
+KS_regular_species <- sort(setdiff(KS_species_list, freq_categories))
+KS_ordered_species <- c(KS_regular_species, sort(freq_categories))
+
+KS_long$species <- factor(KS_long$species, levels = KS_ordered_species)
+
+# Create heat map for Kaleidoscope
+KS_plot <- ggplot(KS_long, aes(x = species, y = location, fill = factor(present))) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  scale_fill_manual(
+    values = c("0" = "gray95", "1" = "#2C7BB6"),
+    labels = c("Absent", "Present"),
+    name = "Detection"
+  ) +
+  labs(
+    #subtitle = "Species identified by Kaleidoscope",
+    x = "Species Code",
+    y = "Location"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+    axis.text.y = element_text(size = 10),
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(size = 11, color = "gray40"),
+    panel.grid = element_blank(),
+    legend.position = "bottom"
+  )
+
+# ============================================================================
+# SONOBAT AUTO ID
+# ============================================================================
+
+SB_matrix <- create_species_matrix(data, "SB.Species.Auto.ID.verbose")
+
+# Convert to long format for ggplot
+SB_long <- SB_matrix %>%
+  pivot_longer(
+    cols = -location,
+    names_to = "species",
+    values_to = "present"
+  ) %>%
+  mutate(species = factor(species))
+
+SB_long$location <- factor(SB_long$location, 
+                           levels = sort(unique(SB_long$location)))
+
+# Custom species ordering: alphabetical, but HighF, LowF, 40K at end
+SB_species_list <- unique(SB_long$species)
+SB_regular_species <- sort(setdiff(SB_species_list, freq_categories))
+SB_ordered_species <- c(SB_regular_species, sort(freq_categories))
+
+SB_long$species <- factor(SB_long$species, levels = SB_ordered_species)
+
+# Create heat map for SonoBat
+SB_plot <- ggplot(SB_long, aes(x = species, y = location, fill = factor(present))) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  scale_fill_manual(
+    values = c("0" = "gray95", "1" = "#2C7BB6"),
+    labels = c("Absent", "Present"),
+    name = "Detection"
+  ) +
+  labs(
+    #subtitle = "Species identified by SonoBat",
+    x = "Species Code",
+    y = "Location"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+    axis.text.y = element_text(size = 10),
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(size = 11, color = "gray40"),
+    panel.grid = element_blank(),
+    legend.position = "bottom"
+  )
+
+```
+
+```{r}
+#| label: setup - bat spp definitions
+#| include: false
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+
+# Create species reference table from scratch
+unique_bat_ids <- data.frame(
+  Code = c("EPFU", "EPFULACI", "EPFULANO", "LABO", "LABOMYLU", "LACI", 
+           "LACILANO", "LANO", "MYCI","MYCIMYLU", "MYCIMYVO","MYEV", "MYLU", "MYLUMYSE", "MYSE", "MYVO", "NOID", "NOISE",
+           "40KMYO", "HighF", "LowF"),
+  stringsAsFactors = FALSE
+)
+
+# Add definitions for each manual ID
+unique_bat_ids$Definition <- c(
+  "Calls that have diagnostic features identifying it as Eptesicus fuscus",
+  "Calls that could be attributed to either Eptesicus fuscus or Lasiurus cinereus",
+  "Calls that could be attributed to either Eptesicus fuscus or Lasyonicteris noctivagans",
+  "Calls that have diagnostic features identifying it as Lasiurus borealis",
+  "Calls that could be attributed to either Lasiurus borealis or Myotis lucifugus",
+  "Calls that have diagnostic features identifying it as Lasiurus cinereus",
+  "Calls that could be attributed to either Lasiurus cinereus or Lasyonicteris noctivagans",
+  "Calls that have diagnostic features identifying it as Lasyonicteris noctivagans",
+  "Calls that have diagnostic features identifying it as Myotis ciliolabrum",
+  "Calls that could be attributed to either Myotis ciliolabrum or Myotis lucifugus",
+  "Calls that could be attributed to either Myotis ciliolabrum or Myotis volans",
+  "Calls that have diagnostic features identifying it as Myotis evotis",
+  "Calls that have diagnostic features identifying it as Myotis lucifugus",
+  "Calls that could be attributed to either Myotis lucifugus or Myotis septentrionalis",
+  "Calls that have diagnostic features identifying it as Myotis septentrionalis",
+  "Calls that have diagnostic features identifying it as Myotis volans",
+  "Bat calls but no grouping category applies",
+  "No bat recorded",
+  "Various species of Myotis that have a characteristic frequency in the range of 35-40kHz",
+  "Various species with pulses having a characteristic frequency higher than ~35kHz",
+  "Various species with pulses having a characteristic frequency lower than ~30kHz"
+)
+
+# Add Scientific names
+unique_bat_ids$ScientificName <- c(
+  "Eptesicus fuscus",
+  "Eptesicus fuscus / Lasiurus cinereus",
+  "Eptesicus fuscus / Lasyonicteris noctivagans",
+  "Lasiurus borealis",
+  "Lasiurus borealis / Myotis Lucifugus",
+  "Lasiurus cinereus",
+  "Lasiurus cinereus / Lasyonicteris noctivagans",
+  "Lasyonicteris noctivagans",
+  "Myotis ciliolabrum",
+  "Myotis ciliolabrum / Myotis Lucifugus",
+  "Myotis ciliolabrum / Myotis volans",
+  "Myotis evotis",
+  "Myotis lucifugus",
+  "Myotis lucifugus / Myotis septentrionalis",
+  "Myotis septentrionalis",
+  "Myotis volans",
+  "",
+  "",
+  "",
+  "",
+  ""
+)
+
+# Add common names
+unique_bat_ids$CommonName <- c(
+  "Big Brown Bat",
+  "Big Brown Bat / Hoary Bat",
+  "Big Brown Bat / Silver-haired Bat",
+  "Eatern Red Bat",
+  "Eastern Red Bat / Little Brown Myotis",
+  "Hoary Bat",
+  "Hoary Bat / Silver-haired Bat",
+  "Silver-haired Bat",
+  "Western Small-footed Myotis",
+  "Western Small-footed Myotis / Little Brown Myotis",
+  "Western Small-footed Myotis / Long-legged Myotis",
+  "Long-eared Myotis",
+  "Little Brown Myotis",
+  "Little Brown Myotis / Northern Myotis",
+  "Northern Myotis",
+  "Long-legged Myotis",
+  "Unknown Bat",
+  "No Bat",
+  "40kHz Frequency Myotis",
+  "High Frequency Bat",
+  "Low Frequency Bat"
+)
+
+# Re-order columns for the table
+unique_bat_ids <- unique_bat_ids[, c("CommonName", "ScientificName", "Code", "Definition")]
+
+# If you want just a simple character vector
+unique_bat_id_vector <- unique_bat_ids$Code
+
+
+```
+
+## Land Acknowledgement
+
+Biodiversity Pathways respectfully acknowledges that our work takes place on treaty lands as well as the traditional and unceded territories of First Nations, Inuit, and Métis Peoples across all regions of Canada, whose histories, languages, and cultures are deeply connected to the biodiversity we monitor. We acknowledge the traditional teachings of the lands that we work on, and that reciprocal, meaningful, and respectful relationships with Indigenous peoples make our work possible. We are deeply grateful for their stewardship of these lands, and we are committed to supporting Indigenous-led monitoring programs, while learning Indigenous ways of knowing, being, and doing.
+
+## Background
+
+## Methods
+
+### Data processing
+
+Full-spectrum recordings from the sampling periods were processed using two automatic classifiers: Kaleidoscope's Bats of North America 5.4.0 classifier and Sonobat 3.0's Northeastern North America classifier. Based on documented species ranges, manual identification efforts focused on 6 species: Big Brown Bats (*Eptesicus fuscus*), Silver-haired Bats (*Lasionycteris noctivagans*), Hoary Bat (*Lasiurus cinereus*), Little Brown Myotis (*Myotis lucifugus*), Northen Myotis (*Myotis spententrionalis*) and Tri-colored bat (*Perimyotis subflavus*).
+
+The analysis workflow followed processing standards established by the North American Bat Monitoring Program (NABat) [@reichert2018Guide]. Only recordings that were identified as a bat by Kaleidoscope were manually verified. All recordings with automated classifications underwent complete manual verification. Species identifications were validated using reference call parameters described by @szewczak2018Acoustic, @slough2022New, and @solick2022Bat, in accordance with NABat manual vetting protocols [@reichert2018Guide].
+
+## Results
+
+Following manual verification, hoary bats(*Lasiurus cinereus*), eastern red bats (*Lasirus borealis*), and little brown Myotis (*Myotis lucifugus*) were detected at all surveyed locations ([@fig-MVsummary]). Silver-haired bats (*Lasionycteris noctivagans*) were detected at all sites except IPCA-BH-BAT-07; however, their presence at this site remains plausible given regional distributions. Northern Myotis (*Myotis septentrionalis*) were detected only at the IPCA-STRATH-01 location. As this species is challenging to detect using acoustic methods, non-detection at other sites should not be interpreted as evidence of true absence.
+
+```{r}
+#| label: fig-MVsummary
+#| fig-cap: "Species confirmed through manual verification across monitoring locations in 2025. Blue tiles indicate species presence; gray tiles indicate absence."
+#| echo: false
+#| warning: false
+#| message: false
+
+if (knitr::is_latex_output()) {
+  # PDF output
+  print(MV)
+} else {
+  # HTML output
+  print(MV)
+}
+```
+
+```{r}
+#| label: fig-KSsummary
+#| fig-cap: "Species detected by Kaleidoscope AutoID across monitoring locations in 2025. Blue tiles indicate species presence; gray tiles indicate absence."
+#| echo: false
+#| warning: false
+#| message: false
+
+if (knitr::is_latex_output()) {
+  # PDF output
+  print(KS_plot)
+} else {
+  # HTML output
+  print(KS_plot)
+}
+```
+
+```{r}
+#| label: fig-SBsummary
+#| fig-cap: "Species detected by Sonobat AutoID across monitoring locations in 2025. Blue tiles indicate species presence; gray tiles indicate absence."
+#| echo: false
+#| warning: false
+#| message: false
+
+if (knitr::is_latex_output()) {
+  # PDF output
+  print(SB_plot)
+} else {
+  # HTML output
+  print(SB_plot)
+}
+```
+
+## Recomendations
+
+{{< pagebreak >}}
+
+## Appendix A
+
+Species codes and their definitions
+
+```{r}
+#| label: AppendixA
+#| echo: false
+#| warning: false
+#| message: false
+if (knitr::is_latex_output()) {
+    # PDF output with column wrapping
+  unique_bat_ids %>%
+    kable(format = "latex", 
+          booktabs = TRUE,
+          longtable = TRUE) %>%
+    kable_styling(
+      latex_options = c("striped", "repeat_header"),
+      font_size = 9
+    ) %>%
+    column_spec(1, width = "3.5cm") %>%
+    column_spec(2, width = "3.5cm") %>%
+    column_spec(3, width = "2cm") %>%
+    column_spec(4, width = "6cm")  # This allows wrapping in Definition column
+} else {
+  # HTML output
+  unique_bat_ids %>%
+    flextable() %>%
+    align(j = 1, align = "left") %>%
+    align(j = 2:ncol(unique_bat_ids), align = "center") %>%
+    theme_zebra() %>%
+    autofit()
+}
+```
+
+## Literature Cited
