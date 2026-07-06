@@ -24,11 +24,17 @@ format:
 date: last-modified
 author: 
   - name: "Camila Hurtado"
-    affiliation: "Lead, Biodiversity Pathways Ltd."
+    affiliation: "Biodiversity Pathways Ltd."
 editor: visual
 bibliography: references.bib
 nocite: '@*'
 ---
+
+## Land Acknowledgement
+
+Biodiversity Pathways respectfully acknowledges that our work takes place on treaty lands as well as the traditional and unceded territories of First Nations, Inuit, and Métis Peoples across all regions of Canada, whose histories, languages, and cultures are deeply connected to the biodiversity we monitor. We acknowledge the traditional teachings of the lands that we work on, and that reciprocal, meaningful, and respectful relationships with Indigenous peoples make our work possible. We are deeply grateful for their stewardship of these lands, and we are committed to supporting Indigenous-led monitoring programs, while learning Indigenous ways of knowing, being, and doing.
+
+![Offshore wind turbine installed about 27 miles off the coast of Virginia Beach by the Coastal Virginia Offshore Wind pilot. Photo by Jess Stormberg/[BOEM](https://www.boem.gov/renewable-energy/state-activities/coastal-virginia-offshore-wind-project-cvow-research-project)](Icons/OffshoreWindTurbine-JessStrombergBOEM.jpg)
 
 ```{r}
 #| label: setup - load libraries and data
@@ -379,17 +385,15 @@ m = m |>
 m
 ```
 
-## Land Acknowledgement
-
-Biodiversity Pathways respectfully acknowledges that our work takes place on treaty lands as well as the traditional and unceded territories of First Nations, Inuit, and Métis Peoples across all regions of Canada, whose histories, languages, and cultures are deeply connected to the biodiversity we monitor. We acknowledge the traditional teachings of the lands that we work on, and that reciprocal, meaningful, and respectful relationships with Indigenous peoples make our work possible. We are deeply grateful for their stewardship of these lands, and we are committed to supporting Indigenous-led monitoring programs, while learning Indigenous ways of knowing, being, and doing.
-
 ## Background
 
 There is a growing need to understand bat activity in offshore environments as the exploration and development of offshore wind energy facilities expands. Several bat species are known to use offshore routes during migration and movement, including three Canadian migratory species, *Lasiurus cinereus*, *Lasiurus borealis*, and *Lasionycteris noctivagans*, which have been assessed as Endangered by COSEWIC [@solick2021; @canada2024]. To better understand bat use of offshore environments and assess the potential impacts of offshore wind energy facilities, the Canadian Wildlife Service is monitoring bats offshore using both stationary and mobile acoustic detectors, following the guidelines set forth by the Regional Wildlife Science Collaborative for Offshore Wind [@integrat]
 
+![Silver-haired bat (*Lasyonicteris noctivagans*). Photo by Jason Headley](Icons/LANO-JasonHeadley.jpg)
+
 ## Methods
 
-The Canadian Wildlife Service deployed acoustic units to record bats at 13 stationary sites along the maritime coastline, and 3 mobile transects on 4 different vessels (Cartier, DFO-Discovery, NRCAN-Discovery and Coriolis), with the NRCAN-Discovery vessel carrying 3 microphones positioned on different sections of the ship (main mast, met mast A, and met mast B). Sampling occurred mainly in the summer and fall of 2025, with additional sampling from 2024 and 2026 submitted for review.
+The Canadian Wildlife Service deployed acoustic units to record bats at 13 stationary sites along the maritime coastline, and 4 mobile transects on 4 different vessels (Cartier, DFO-Discovery, NRCAN-Discovery and Coriolis), with the NRCAN-Discovery vessel carried 3 microphones positioned on different sections of the ship (main mast, met mast A, and met mast B). Sampling occurred mainly in the summer and fall of 2025, with additional sampling from 2024 and 2026 submitted for review.
 
 ### Data processing
 
@@ -397,20 +401,26 @@ Full-spectrum recordings from the sampling periods were processed using two auto
 
 The analysis workflow followed processing standards established by the North American Bat Monitoring Program (NABat) [@reichert2018]. Only recordings that were identified as a bat by Kaleidoscope were manually verified. All recordings with automated classifications underwent complete manual verification. Species identifications were validated using reference call parameters described by @szewczak2022 and @batacou , in accordance with NABat manual vetting protocols [@reichert2018].
 
-## Results
+## Results and Discussion
 
-In total, 226,660 recordings were submitted to SENSR for review. Of these, 204,416 were identified as Noise by Kaleidoscope, and the remaining 22,244 were manually reviewed and assigned a species or species-grouping ID. Manual verification flagged an additional 1,910 recordings as Noise that Kaleidoscope had erroneously identified as bats, leaving a total of 20,334 bat recordings across all sites. Of these, 14 were recorded along the mobile ship-based routes, while the remainder came from stationary acoustic recorders deployed along the coastline [@fig-SiteSummary].
+In total, 226,660 recordings were submitted to SENSR for review. Of these, 204,416 were identified as Noise by Kaleidoscope, and the remaining 22,244 were manually reviewed and assigned a species or species-grouping ID. Manual verification flagged an additional 1,910 recordings as noise that Kaleidoscope had erroneously identified as bats, leaving a total of 20,334 bat recordings across all sites. Of these, 14 were recorded along the mobile ship-based routes, while the remainder came from stationary acoustic recorders deployed along the coastline ([@fig-SiteSummary]).
 
 ```{r}
 #| label: fig-SiteSummary
 #| echo: false
 #| warning: false
 #| message: false
-#| fig-cap: Sites!
+#| fig-cap: Acoustic bat monitoring sites across the Nova Scotia study area. Stationary recording stations are shown as circular markers and mobile (vessel-based) transects as boat icons. Clicking any site opens a summary of species detections, including a table of total detections by species code and a bar chart of monthly detection totals. Sites sharing identical coordinates have been offset slightly for visibility.
 
 m
 
 ```
+
+All species were recorded across the project sites, but detections varied among sites and across the survey months. The most commonly recorded species was the hoary bat (*Lasiurus cinereus*), with a total of 519 detections, followed closely by the silver-haired bat (*Lasionycteris noctivagans*) with 488 and the eastern red bat (*Lasiurus borealis*) with 235. The greatest overall bat activity was recorded at Prim Point Lighthouse, which had its highest activity in June 2025 ([@fig-SiteSummary]).
+
+Feeding buzzes were recorded at six of the monitored sites, providing direct evidence of foraging activity rather than commuting flight alone, though this foraging may have been opportunistic rather than reflecting habitual use of these areas. The greatest number of feeding buzzes was recorded at Brier Island (166), followed by Pinkney Point (90), with the remaining four sites contributing smaller numbers. These feeding buzzes originated primarily from recordings identified as silver-haired bats, indicating that this species was actively foraging within the study area. No social calls were detected at any site over the course of the survey.
+
+Overall, the quality of recordings was good. Noise files were numerous across all sites, which was expected based on similar studies and is likely due to the proximity of recording equipment to the ships and lighthouses. We recommend that future sampling continue to follow the Regional Wildlife Science Collaborative for Offshore Wind guidance on sampling techniques.
 
 ## Appendix A
 
