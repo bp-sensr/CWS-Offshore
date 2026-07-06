@@ -1,0 +1,10 @@
+project:
+  type: website
+  output-dir: _site
+  resources:
+    - Icons/
+    - styles.css
+
+website:
+  title: "CWS- Offshore Bat Monitoring Project"
+  site-url: https://bp-sensr.github.io/CWS-Offshore/
