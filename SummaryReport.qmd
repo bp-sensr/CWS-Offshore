@@ -3,6 +3,7 @@ title: "CWS- Offshore Bat Monitoring Project"
 subtitle: "Manual Verification Data Summary "
 format:
   html:
+    embed-resources: true
     grid:
       margin-width: 300px
     title-block-banner: "#1d4566"
