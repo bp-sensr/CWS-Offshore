@@ -14,40 +14,55 @@
 
 library(dplyr)
 library(tidyr)
-library(readr)
 library(lubridate)
-library(stringr)
+library(hms)
 
 # ---- 1. Load data ------------------------------------------
-
-dat <- read_csv(
-  "Data/GUANO_Complete_Metadata_test.csv",
+#this is the raw 
+df <- read_csv(
+  "Data/GUANO_Complete_Metadata.csv",
   show_col_types = FALSE
 )
 
-# ---- 2. Parse timestamp ------------------------------------
+# ---- 2. Get year and month ------------------------------------
 
-dat <- dat %>%
+df <- df %>%
+  extract(
+    filename,
+    into = c("date_str", "time_str"),
+    regex = "_(\\d{8})_(\\d{6})",   # grab yyyymmdd_hhmmss wherever it sits; ignore trailing junk
+    remove = FALSE
+  ) %>%
   mutate(
-    ts_parsed = ymd_hms(Timestamp, tz = "UTC"),
-    Year      = year(ts_parsed),
-    Month     = month(ts_parsed, label = TRUE, abbr = FALSE)  # e.g. "June"
-  )
+    datetime = ymd_hms(paste(date_str, time_str)),
+    Date  = as_date(datetime),
+    Time  = as_hms(datetime),
+    year  = year(datetime),
+    month = month(datetime)
+  ) %>%
+  select(-date_str, -time_str)
 
 # ---- 3. Expand comma-separated species ---------------------
 # Split "LASCIN, MYLU" into one row per species, trimming whitespace.
 # This increases row count where multiple species were identified.
 
-dat_expanded <- dat %>%
+dat_expanded <- df %>%
   filter(
     !is.na(Site),
-    !is.na(ts_parsed),
-    !is.na(`Species Manual ID`),
+    !is.na(Time)
   ) %>%
-  mutate(species_list = str_split(`Species Manual ID`, ",")) %>%
+  mutate(
+    # Use the manual ID when present; otherwise fall back to the auto ID
+    species_source = if_else(
+      is.na(`Species Manual ID`) | str_trim(`Species Manual ID`) == "",
+      `Species Auto ID`,
+      `Species Manual ID`
+    )
+  ) %>%
+  mutate(species_list = str_split(species_source, ",")) %>%
   unnest(species_list) %>%
-  mutate(species_list = str_trim(species_list)) %>%  # remove stray whitespace
-  filter(species_list != "")                          # drop any empty tokens
+  mutate(species_list = str_trim(species_list)) %>%
+  filter(species_list != "", !is.na(species_list))
 
 # ---- 4. Separate regular species from FB / SC --------------
 
@@ -105,9 +120,32 @@ summary_wide <- summary_wide %>%
     FB, SC                         # FB/SC last
   )
 
+id_cols <- c("Site", "Year", "Month")   # pinned at the front
+
+# Groups to force to the end, in the order you want them to appear
+end_targets <- c("40kMyo", "HIGH FREQUENCY", "LOW FREQUENCY",
+                 "NoID", "FB", "SC", "NOISE")
+
+all_cols <- names(summary_wide)
+
+# Resolve targets to the real column names (case-insensitive), keeping your order
+end_cols <- all_cols[match(tolower(end_targets), tolower(all_cols))]
+end_cols <- end_cols[!is.na(end_cols)]        # drop any not present
+
+# Everything else (not id, not end) gets alphabetized
+species_cols <- sort(setdiff(all_cols, c(id_cols, end_cols)))
+
+summary_wide <- summary_wide %>%
+  select(all_of(c(id_cols, species_cols, end_cols)))
+
+
+summary_wide <- summary_wide %>%
+  mutate(Noise = NOISE + Noise) %>%   # add the two together
+  select(-NOISE) %>%                  # drop the uppercase version
+  relocate(Noise, .after = last_col()) 
 # ---- 8. Save -----------------------------------------------
 
-write_csv(summary_wide, "species_summary_by_site_month_year.csv")
+write_csv(summary_wide, "Data/species_summary_by_site_month_year.csv")
 
 message("Done. Rows written: ", nrow(summary_wide))
 print(summary_wide)

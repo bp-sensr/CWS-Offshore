@@ -1,0 +1,18 @@
+Site,Type,Lat,Long,Comment
+Coastline-KejiSeaside,Stationary,43.816748,-64.834231,
+Coastline_HartlenPoint,Stationary,44.691072,-65.786394,Same as PrimPoint. Review and merge if needed
+Coastline_NeilsHarbour,Stationary,46.806696,-60.319099,
+Lighthouse_PrimPoint,Stationary,44.691072,-65.786394,Same as HartlenPoint. Review and merge if needed
+NB-GOM-ISL-O-MachiasSealIsland,Stationary,44.501893,-67.101864,
+NS-BOF-ISL-Brier,Stationary,44.286923,-66.341934,Did not have coordinates. Selected approx coordinates based on name. Update as needed
+NS-CBH-CST-CapeGeorge,Stationary,45.87387,-61.90018,
+NS-ESS-ISL-O-SableIsland,Stationary,43.933199,-60.00706,
+NS-LOB-CST-CapeForchu,Stationary,43.7942,-66.155411,Did not have coordinates. Selected approx coordinates based on name. Update as needed
+NS-LOB-CST-PinkneyPoint,Stationary,43.704282,-66.052952,
+NS-LOB-CST-SwimsPoint,Stationary,43.432967,-65.632209,
+NS-OBF-CST-BoarsHead,Stationary,44.404053,-66.215208,
+NS-SCA-CST-MainaDieu,Stationary,46.004451,-59.838142,
+NRCAN-Coriolis,Mobile,44.663789,-63.560056,Starting point: Dathmouth Cove
+DFO-Discovery,Mobile,44.672417,-63.600067,"Starting point: Richmond Terminal, NS"
+NRCAN-Discovery,Mobile,44.6813,-63.613278,"Starting point: Bedford Institute, NS"
+DFO-Cartier,Mobile,44.6813,-63.613278,"Starting point: Bedford Institute, NS"
