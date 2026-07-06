@@ -186,6 +186,8 @@ unique_bat_id_vector <- unique_bat_ids$Code
     # downstream group_by(Site) step.
     df$Site <- ifelse(grepl("^NRCAN-Discovery", trimws(df$Site)),
                       "NRCAN-Discovery", df$Site)
+    df$Site <- ifelse(grepl("^VES-NOC-RRS-JamesCook", trimws(df$Site)),
+                      "VES-NOC-RRS-JamesCook", df$Site)
 # --- 1. Identify species columns: everything numeric EXCEPT the excluded ones
 exclude_cols = c("Site", "Year", "Month")
 species_cols = names(df)[
@@ -426,7 +428,7 @@ To better understand bat use of offshore environments and assess the potential i
 
 ## Methods
 
-The Canadian Wildlife Service deployed acoustic units to record bats at 13 stationary sites along the maritime coastline, and 4 mobile transects on 4 different vessels (Cartier, DFO-Discovery, NRCAN-Discovery and Coriolis), with the NRCAN-Discovery vessel carried 3 microphones positioned on different sections of the ship (main mast, met mast A, and met mast B). Sampling occurred mainly in the summer and fall of 2025, with additional sampling from 2024 and 2026 submitted for review.
+The Canadian Wildlife Service deployed acoustic units to record bats at 13 stationary sites along the maritime coastline, and 5 mobile transects on 5 different vessels (Cartier, DFO-Discovery, NRCAN-Discovery, Coriolis, and James Cook). The NRCAN-Discovery vessel carried 3 microphones positioned on different sections of the ship (main mast, met mast A, and met mast B). The James Cook vessel had two microphones positioned on different sections of the ship (main and met mast). Sampling occurred mainly in the summer and fall of 2025, with additional sampling from 2024 and 2026 submitted for review.
 
 ### Data processing
 
@@ -436,7 +438,7 @@ The analysis workflow followed processing standards established by the North Ame
 
 ## Results and Discussion
 
-In total, 226,660 recordings were submitted to SENSR for review. Of these, 204,416 were identified as Noise by Kaleidoscope, and the remaining 22,244 were manually reviewed and assigned a species or species-grouping ID. Manual verification flagged an additional 1,910 recordings as noise that Kaleidoscope had erroneously identified as bats, leaving a total of 20,334 bat recordings across all sites. Of these, 14 were recorded along the mobile ship-based routes, while the remainder came from stationary acoustic recorders deployed along the coastline ([@fig-SiteSummary]`r if (is_pdf) ", Appendix B" else ""`).
+In total, 234,137 recordings were submitted to SENSR for review. Of these, 211,376 were identified as Noise by Kaleidoscope, and the remaining 22,761 were manually reviewed and assigned a species or species-grouping ID. Manual verification flagged an additional 2,432 recordings as noise that Kaleidoscope had erroneously identified as bats, leaving a total of 20,335 bat recordings across all sites. Of these, 15 were recorded along the mobile ship-based routes, while the remainder came from stationary acoustic recorders deployed along the coastline ([@fig-SiteSummary]`r if (is_pdf) ", Appendix B" else ""`).
 
 ```{r}
 #| label: fig-SiteSummary
