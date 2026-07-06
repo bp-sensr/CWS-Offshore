@@ -14,13 +14,19 @@ format:
     toc-location: left
     css: styles.css
   pdf:
+    classoption:
+      - titlepage       
     toc: true
     toc-depth: 3
     number-sections: true
     colorlinks: true
+    toccolor: black 
     geometry:
       - margin=1in
     papersize: letter
+    include-before-body:
+      text: |
+        \newpage 
 date: last-modified
 author: 
   - name: "Camila Hurtado"
@@ -29,6 +35,8 @@ editor: visual
 bibliography: references.bib
 nocite: '@*'
 ---
+
+{{< pagebreak >}}
 
 ## Land Acknowledgement
 
@@ -50,9 +58,22 @@ library(tidyr)
 library(htmltools)
 library(base64enc)
 library(flextable)
+library(kableExtra)
 
 is_html <- knitr::pandoc_to("html")
 is_pdf  <- !is_html
+#Need to specify figure captions based on the rendering type (PDF or HTML)
+cap_sitesummary <- paste0(
+  "Acoustic bat monitoring sites across the Nova Scotia study area. ",
+  "Stationary recording stations are shown as circular markers and ",
+  "mobile (vessel-based) transects as boat icons.",
+  if (is_html) paste0(
+    " Clicking any site opens a summary of species detections, including a ",
+    "table of total detections by species code and a bar chart of monthly ",
+    "detection totals. Sites sharing identical coordinates have been offset ",
+    "slightly for visibility."
+  ) else ""
+)
 
 df <- read.csv("Data/species_summary_by_site_month_year.csv")
 sites <- read.csv("Data/SiteCoordinates.csv")
@@ -157,6 +178,14 @@ unique_bat_id_vector <- unique_bat_ids$Code
 #| warning: false
 #| message: false
 
+# --- 0. Collapse NRCAN-Discovery's three microphones into one site ---------
+    # The NRCAN-Discovery vessel carried three mics (main mast, met mast A,
+    # met mast B), which appear as three separate Site names in `df`, but there
+    # is only a single "NRCAN-Discovery" location in `sites`. Merge the sub-sites
+    # so their detections (and noise) are summed under one name before every
+    # downstream group_by(Site) step.
+    df$Site <- ifelse(grepl("^NRCAN-Discovery", trimws(df$Site)),
+                      "NRCAN-Discovery", df$Site)
 # --- 1. Identify species columns: everything numeric EXCEPT the excluded ones
 exclude_cols = c("Site", "Year", "Month")
 species_cols = names(df)[
@@ -216,37 +245,39 @@ map_data = map_data |>
 
 # ---- Create the time series plots
 
-make_timeseries_svg = function(dates, values, width = 320L, height = 200L) {
-  ml = 44; mr = 12; mt = 12; mb = 52
+make_timeseries_svg = function(dates, values, width = 320L, height = 200L, font_size = 9) {
+  # left/bottom margins grow a touch with font_size so bigger labels don't clip;
+  # at the default font_size = 9 these are exactly 44 and 52 as before.
+  ml = 44 + (font_size - 9) * 2.5; mr = 12; mt = 12; mb = 52 + (font_size - 9) * 3
   pw = width - ml - mr; ph = height - mt - mb
   n  = length(values)
-
+  
   # Only bail out if there are no sampled months at all to place on the axis
   if (n == 0) {
     return(sprintf(
       '<svg width="%d" height="%d" xmlns="http://www.w3.org/2000/svg"><text x="%d" y="%d" font-size="12" fill="#666" text-anchor="middle" font-family="sans-serif">No sampling data</text></svg>',
       width, height, width %/% 2L, height %/% 2L))
   }
-
+  
   # y-axis scale / gridlines (all-zero months still draw an axis, just no bars)
   maxv  = max(values)
   ticks = if (maxv == 0) c(0, 1) else if (maxv <= 5) 0:maxv else pretty(c(0, maxv), n = 4)
   ytop  = max(ticks); if (ytop == 0) ytop = 1
-
+  
   grid = ""
   for (t in ticks) {
     yy = mt + ph - (t / ytop) * ph
     grid = paste0(grid,
-      sprintf('<line x1="%f" y1="%f" x2="%f" y2="%f" stroke="#e6e6e6" stroke-width="1"/>',
-              ml, yy, ml + pw, yy),
-      sprintf('<text x="%f" y="%f" font-size="9" fill="#555" text-anchor="end" font-family="sans-serif">%s</text>',
-              ml - 5, yy + 3, format(t, big.mark = ",")))
+                  sprintf('<line x1="%f" y1="%f" x2="%f" y2="%f" stroke="#e6e6e6" stroke-width="1"/>',
+                          ml, yy, ml + pw, yy),
+                  sprintf('<text x="%f" y="%f" font-size="%d" fill="#555" text-anchor="end" font-family="sans-serif">%s</text>',
+                          ml - 5, yy + 3, font_size, format(t, big.mark = ",")))
   }
-
+  
   axes = sprintf(
     '<line x1="%f" y1="%f" x2="%f" y2="%f" stroke="#888" stroke-width="1"/><line x1="%f" y1="%f" x2="%f" y2="%f" stroke="#888" stroke-width="1"/>',
     ml, mt, ml, mt + ph, ml, mt + ph, ml + pw, mt + ph)
-
+  
   # bar geometry: evenly spaced slots, bar fills ~70% of each slot
   slot  = pw / n
   bw    = slot * 0.7
@@ -261,14 +292,14 @@ make_timeseries_svg = function(dates, values, width = 320L, height = 200L) {
       '<rect x="%f" y="%f" width="%f" height="%f" fill="#2c7fb8"><title>%s: %s</title></rect>',
       bx, by, bw, bh, format(dates[i], "%B %Y"), format(values[i], big.mark = ",")))
     xlab = paste0(xlab, sprintf(
-      '<text x="%f" y="%f" font-size="9" fill="#555" text-anchor="end" font-family="sans-serif" transform="rotate(-40 %f %f)">%s</text>',
-      cx, mt + ph + 12, cx, mt + ph + 12, format(dates[i], "%b %Y")))
+      '<text x="%f" y="%f" font-size="%d" fill="#555" text-anchor="end" font-family="sans-serif" transform="rotate(-40 %f %f)">%s</text>',
+      cx, mt + ph + 12, font_size, cx, mt + ph + 12, format(dates[i], "%b %Y")))
   }
-
+  
   ytitle = sprintf(
-    '<text x="11" y="%f" font-size="9" fill="#555" text-anchor="middle" font-family="sans-serif" transform="rotate(-90 11 %f)">Bats detected</text>',
-    mt + ph / 2, mt + ph / 2)
-
+    '<text x="11" y="%f" font-size="%d" fill="#555" text-anchor="middle" font-family="sans-serif" transform="rotate(-90 11 %f)">Bats detected</text>',
+    mt + ph / 2, font_size, mt + ph / 2)
+  
   sprintf('<svg width="%d" height="%d" viewBox="0 0 %d %d" xmlns="http://www.w3.org/2000/svg">%s%s%s%s%s</svg>',
           width, height, width, height, grid, axes, bars, xlab, ytitle)
 }
@@ -387,7 +418,9 @@ m
 
 ## Background
 
-There is a growing need to understand bat activity in offshore environments as the exploration and development of offshore wind energy facilities expands. Several bat species are known to use offshore routes during migration and movement, including three Canadian migratory species, *Lasiurus cinereus*, *Lasiurus borealis*, and *Lasionycteris noctivagans*, which have been assessed as Endangered by COSEWIC [@solick2021; @canada2024]. To better understand bat use of offshore environments and assess the potential impacts of offshore wind energy facilities, the Canadian Wildlife Service is monitoring bats offshore using both stationary and mobile acoustic detectors, following the guidelines set forth by the Regional Wildlife Science Collaborative for Offshore Wind [@integrat]
+There is a growing need to understand bat activity in offshore environments as the exploration and development of offshore wind energy facilities expands. Several bat species are known to use offshore routes during migration and movement, including three Canadian migratory species, Hoary Bat (*Lasiurus cinereus)*, Eastern Red Bat (*Lasiurus borealis)*, and Silver-haired bat (*Lasionycteris noctivagans)*, which have been assessed as Endangered by COSEWIC [@solick2021; @canada2024].
+
+To better understand bat use of offshore environments and assess the potential impacts of offshore wind energy facilities, the Canadian Wildlife Service is monitoring bats offshore using both stationary and mobile acoustic detectors, following the guidelines set forth by the Regional Wildlife Science Collaborative for Offshore Wind [@integrat].
 
 ![Silver-haired bat (*Lasyonicteris noctivagans*). Photo by Jason Headley](Icons/LANO-JasonHeadley.jpg)
 
@@ -403,24 +436,45 @@ The analysis workflow followed processing standards established by the North Ame
 
 ## Results and Discussion
 
-In total, 226,660 recordings were submitted to SENSR for review. Of these, 204,416 were identified as Noise by Kaleidoscope, and the remaining 22,244 were manually reviewed and assigned a species or species-grouping ID. Manual verification flagged an additional 1,910 recordings as noise that Kaleidoscope had erroneously identified as bats, leaving a total of 20,334 bat recordings across all sites. Of these, 14 were recorded along the mobile ship-based routes, while the remainder came from stationary acoustic recorders deployed along the coastline ([@fig-SiteSummary]).
+In total, 226,660 recordings were submitted to SENSR for review. Of these, 204,416 were identified as Noise by Kaleidoscope, and the remaining 22,244 were manually reviewed and assigned a species or species-grouping ID. Manual verification flagged an additional 1,910 recordings as noise that Kaleidoscope had erroneously identified as bats, leaving a total of 20,334 bat recordings across all sites. Of these, 14 were recorded along the mobile ship-based routes, while the remainder came from stationary acoustic recorders deployed along the coastline ([@fig-SiteSummary]`r if (is_pdf) ", Appendix B" else ""`).
 
 ```{r}
 #| label: fig-SiteSummary
 #| echo: false
 #| warning: false
 #| message: false
-#| fig-cap: Acoustic bat monitoring sites across the Nova Scotia study area. Stationary recording stations are shown as circular markers and mobile (vessel-based) transects as boat icons. Clicking any site opens a summary of species detections, including a table of total detections by species code and a bar chart of monthly detection totals. Sites sharing identical coordinates have been offset slightly for visibility.
+#| out-width: 100%
+#| fig-cap: !expr cap_sitesummary
 
-m
+if (is_html) {
+  # Interactive Leaflet widget for the HTML output
+  m
+} else {
+  # LaTeX/PDF cannot embed an interactive widget, so capture a static
+  # screenshot of the map with mapshot2() and insert the PNG instead.
+  if (!dir.exists("Figures")) dir.create("Figures")
+  map_png <- "Figures/site_summary_map.png"
+  
+  mapview::mapshot2(
+    m,
+    file    = map_png,
+    vwidth  = 900,   # render width in px  (controls aspect ratio)
+    vheight = 650,   # render height in px
+    delay   = 1.5    # give the basemap tiles time to load before capture
+  )
+  
+  knitr::include_graphics(map_png)
+}
 
 ```
 
-All species were recorded across the project sites, but detections varied among sites and across the survey months. The most commonly recorded species was the hoary bat (*Lasiurus cinereus*), with a total of 519 detections, followed closely by the silver-haired bat (*Lasionycteris noctivagans*) with 488 and the eastern red bat (*Lasiurus borealis*) with 235. The greatest overall bat activity was recorded at Prim Point Lighthouse, which had its highest activity in June 2025 ([@fig-SiteSummary]).
+All species were recorded across the project sites, but detections varied among sites and across the survey months. The most commonly recorded species was the hoary bat (*Lasiurus cinereus*), with a total of 519 detections, followed closely by the silver-haired bat (*Lasionycteris noctivagans*) with 488 and the eastern red bat (*Lasiurus borealis*) with 235. The greatest overall bat activity was recorded at Prim Point Lighthouse, which had its highest activity in June 2025 ([@fig-SiteSummary]`r if (is_pdf) ", Appendix B" else ""`).
 
 Feeding buzzes were recorded at six of the monitored sites, providing direct evidence of foraging activity rather than commuting flight alone, though this foraging may have been opportunistic rather than reflecting habitual use of these areas. The greatest number of feeding buzzes was recorded at Brier Island (166), followed by Pinkney Point (90), with the remaining four sites contributing smaller numbers. These feeding buzzes originated primarily from recordings identified as silver-haired bats, indicating that this species was actively foraging within the study area. No social calls were detected at any site over the course of the survey.
 
 Overall, the quality of recordings was good. Noise files were numerous across all sites, which was expected based on similar studies and is likely due to the proximity of recording equipment to the ships and lighthouses. We recommend that future sampling continue to follow the Regional Wildlife Science Collaborative for Offshore Wind guidance on sampling techniques.
+
+{{< pagebreak >}}
 
 ## Appendix A
 
@@ -455,5 +509,99 @@ if (knitr::is_latex_output()) {
     autofit()
 }
 ```
+
+{{< pagebreak >}}
+
+```{r}
+#| label: appendix-b
+#| echo: false
+#| warning: false
+#| message: false
+#| output: asis
+
+# ---- Appendix B: per-site popup content, PDF only ------------------------
+# Recreates the species table + "Detections over time" chart from the map
+# popups, screenshots each with webshot2, one site per subsection.
+if (is_pdf) {
+  
+  # Full (non-scrolling) version of the popup species table
+  appendix_table_html <- function(counts) {
+    cc <- counts[counts > 0]
+    trailing   <- c("40KMYO","High Frequency","Low Frequency","NoID","FB","SC","Noise")
+    trail_rank <- match(toupper(names(cc)), toupper(trailing))
+    is_trail   <- !is.na(trail_rank)
+    cc <- cc[order(is_trail, ifelse(is_trail, trail_rank, 0), toupper(names(cc)))]
+    
+    if (length(cc) == 0) {
+      body <- '<tr><td colspan="2" style="padding:4px 8px;"><em>No detections</em></td></tr>'
+    } else {
+      bg   <- rep(c("#ffffff","#f2f6fa"), length.out = length(cc))
+      body <- paste(sprintf(
+        '<tr style="background:%s;"><td style="padding:3px 10px;border:1px solid #d0d7de;font-weight:bold;">%s</td><td style="padding:3px 10px;border:1px solid #d0d7de;text-align:right;">%s</td></tr>',
+        bg, names(cc), format(cc, big.mark = ",")), collapse = "")
+      total_val <- sum(cc[!toupper(names(cc)) %in% c("NOISE","FB","SC")])
+      body <- paste0(body, sprintf(
+        '<tr style="background:#e2e8f0;"><td style="padding:4px 10px;border:1px solid #d0d7de;font-weight:bold;">Total Bats</td><td style="padding:4px 10px;border:1px solid #d0d7de;text-align:right;font-weight:bold;">%s</td></tr>',
+        format(total_val, big.mark = ",")))
+    }
+    sprintf(
+      '<table style="font-size:12px;border-collapse:collapse;border:1px solid #d0d7de;font-family:sans-serif;"><tr style="background:#3498db;color:#fff;"><th style="padding:4px 10px;border:1px solid #d0d7de;text-align:left;">Species Code</th><th style="padding:4px 10px;border:1px solid #d0d7de;text-align:right;">Total Detected</th></tr>%s</table>',
+      body)
+  }
+  
+  appx_dir <- "Figures/AppendixB"
+  if (!dir.exists(appx_dir)) dir.create(appx_dir, recursive = TRUE)
+  
+  # Stationary sites first (alphabetical), then mobile
+  ord           <- order(map_data$is_mobile, map_data$Site)
+  sites_ordered <- map_data$Site[ord]
+  
+  html_paths <- character(length(sites_ordered))
+  tbl_pngs   <- character(length(sites_ordered))
+  fig_pngs   <- character(length(sites_ordered))
+  
+  for (k in seq_along(sites_ordered)) {
+    site   <- sites_ordered[k]
+    counts <- setNames(as.numeric(unlist(map_data[map_data$Site == site, species_cols])),
+                       species_cols)
+    tbl_html <- appendix_table_html(counts)
+    
+    sm  <- site_month[site_month$Site == site, ]
+    sm  <- sm[order(sm$date), ]
+    svg <- make_timeseries_svg(sm$date, sm$total, width = 520, height = 320, font_size = 12)
+    
+    page_html <- sprintf(
+      '<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;padding:10px;background:#fff;}#tbl,#fig{display:inline-block;}</style></head><body><div id="tbl">%s</div><div id="fig">%s</div></body></html>',
+      tbl_html, svg)
+    
+    safe          <- gsub("[^A-Za-z0-9]+", "_", site)
+    html_paths[k] <- normalizePath(file.path(appx_dir, paste0(safe, ".html")), mustWork = FALSE)
+    tbl_pngs[k]   <- file.path(appx_dir, paste0(safe, "_table.png"))
+    fig_pngs[k]   <- file.path(appx_dir, paste0(safe, "_chart.png"))
+    writeLines(page_html, html_paths[k])
+  }
+  
+  # Two headless-Chrome sessions total: one for all tables, one for all charts.
+  # webshot2 prints a "... screenshot completed" line per file to stdout, which
+  # under `output: asis` leaks into the document — capture and discard it.
+  invisible(utils::capture.output(suppressMessages({
+    webshot2::webshot(url = html_paths, file = tbl_pngs, selector = "#tbl", zoom = 2)
+    webshot2::webshot(url = html_paths, file = fig_pngs, selector = "#fig", zoom = 2)
+  })))
+  
+  # Emit the appendix as markdown
+  cat("## Appendix B\n\n")
+  cat("Species detection summaries for each monitoring site.\n\n")
+  for (k in seq_along(sites_ordered)) {
+    # Start each site (except the first) on a fresh page
+    if (k > 1) cat("\n\\newpage\n\n")
+    cat(sprintf("### %s {.unnumbered .unlisted}\n\n", sites_ordered[k]))
+    cat(sprintf("![](%s){width=45%%}\n\n", tbl_pngs[k]))
+    cat(sprintf("![](%s){width=60%%}\n\n", fig_pngs[k]))
+  }
+}
+```
+
+{{< pagebreak >}}
 
 ## Literature Cited
