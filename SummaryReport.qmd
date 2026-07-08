@@ -438,7 +438,7 @@ The analysis workflow followed processing standards established by the North Ame
 
 ## Results and Discussion
 
-In total, 234,137 recordings were submitted to SENSR for review. Of these, 211,376 were identified as Noise by Kaleidoscope, and the remaining 22,761 were manually reviewed and assigned a species or species-grouping ID. Manual verification flagged an additional 2,432 recordings as noise that Kaleidoscope had erroneously identified as bats, leaving a total of 20,335 bat recordings across all sites. Of these, 15 were recorded along the mobile ship-based routes, while the remainder came from stationary acoustic recorders deployed along the coastline ([@fig-SiteSummary]`r if (is_pdf) ", Appendix B" else ""`).
+In total, 234,137 recordings were submitted to SENSR for review. Of these, 213,286 were identified as Noise by Kaleidoscope, and the remaining 20,851 were manually reviewed and assigned a species or species-grouping ID. Manual verification flagged an additional 20,631 recordings as noise that Kaleidoscope had erroneously identified as bats, leaving a total of 2,135 bat recordings across all sites. Of these, 15 were recorded along the mobile ship-based routes, while the remainder came from stationary acoustic recorders deployed along the coastline ([@fig-SiteSummary]`r if (is_pdf) ", Appendix B" else ""`).
 
 ```{r}
 #| label: fig-SiteSummary
